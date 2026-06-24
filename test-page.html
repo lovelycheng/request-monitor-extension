@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Extension Test Page</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 20px; }
+    h2 { border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 30px; }
+    section { margin: 16px 0; padding: 12px; background: #f9f9f9; border-radius: 6px; }
+    button, input, select, a { margin: 4px; }
+    label { display: block; margin: 4px 0; }
+    input, select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px; }
+    button { padding: 6px 14px; border: 1px solid #aaa; border-radius: 4px; cursor: pointer; background: #fff; }
+    button:hover { background: #e8e8e8; }
+    .result { margin-top: 8px; padding: 8px; background: #eef; border-radius: 4px; font-size: 12px; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Request Monitor Extension — Test Page</h1>
+  <p>打开此页面后，检查插件 popup 中是否正确捕获了各类请求和操作。</p>
+
+  <!-- ========== 用户交互 ========== -->
+  <h2>一、用户交互测试</h2>
+
+  <section>
+    <h3>按钮点击</h3>
+    <button id="test-btn-1">测试按钮 A（带 id）</button>
+    <button class="test-btn-class">测试按钮 B（带 class）</button>
+    <button data-testid="btn-c">测试按钮 C（带 data-testid）</button>
+    <button>仅文本</button>
+    <button style="display:none">隐藏按钮（不应触发）</button>
+  </section>
+
+  <section>
+    <h3>输入框</h3>
+    <label>输入框（带 name）<input name="username" placeholder="请输入用户名" /></label>
+    <label>输入框（仅 placeholder）<input placeholder="搜索关键词" /></label>
+    <label>密码框 <input type="password" name="pwd" placeholder="请输入密码" /></label>
+    <label>下拉框
+      <select name="type">
+        <option value="">请选择</option>
+        <option value="1">选项一</option>
+        <option value="2">选项二</option>
+      </select>
+    </label>
+    <label>文本域 <textarea name="comment" placeholder="请输入备注"></textarea></label>
+  </section>
+
+  <section>
+    <h3>链接</h3>
+    <a href="/api/test-link-a" id="link-a">测试链接 A（带 id）</a> |
+    <a href="/api/test-link-b" class="link-class">测试链接 B（带 class）</a> |
+    <a href="https://www.example.com">外部链接</a>
+  </section>
+
+  <section>
+    <h3>表单</h3>
+    <form id="test-form" action="/api/test-submit" method="POST">
+      <input name="field1" placeholder="字段1" />
+      <input name="field2" placeholder="字段2" />
+      <button type="submit" id="form-submit-btn">提交表单</button>
+    </form>
+  </section>
+
+  <!-- ========== 网络请求 ========== -->
+  <h2>二、网络请求测试</h2>
+
+  <section>
+    <h3>Fetch 请求</h3>
+    <button id="btn-fetch-get" onclick="doFetch('GET')">Fetch GET</button>
+    <button id="btn-fetch-post" onclick="doFetch('POST')">Fetch POST（带 JSON body）</button>
+    <button id="btn-fetch-err" onclick="doFetch('ERROR')">Fetch 404（触发错误）</button>
+    <div class="result" id="fetch-result"></div>
+  </section>
+
+  <section>
+    <h3>XMLHttpRequest 请求</h3>
+    <button id="btn-xhr-get" onclick="doXHR('GET')">XHR GET</button>
+    <button id="btn-xhr-post" onclick="doXHR('POST')">XHR POST</button>
+    <div class="result" id="xhr-result"></div>
+  </section>
+
+  <section>
+    <h3>动态脚本/图片加载</h3>
+    <button id="btn-dynamic-dom" onclick="doDynamicInsert()">动态插入（script + img + iframe）</button>
+    <div class="result" id="dom-result"></div>
+    <div id="dynamic-container"></div>
+  </section>
+
+  <!-- ========== 自动请求（页面加载时触发）========== -->
+  <h2>三、自动请求</h2>
+  <p>页面加载时自动发送以下请求：</p>
+  <div class="result" id="auto-result">等待...</div>
+
+  <script>
+    // ── 页面加载自动请求 ─────────────────
+    (function () {
+      fetch("/api/auto-load-get")
+        .then((r) => r.text())
+        .then((t) => (document.getElementById("auto-result").textContent = "auto-load-get 完成: " + t.substring(0, 50)))
+        .catch((e) => (document.getElementById("auto-result").textContent = "auto-load-get 失败: " + e.message));
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", "/api/auto-load-xhr");
+      xhr.onload = () => {
+        document.getElementById("auto-result").textContent += " | XHR 完成: " + xhr.status;
+      };
+      xhr.send();
+    })();
+
+    // ── Fetch 测试 ────────────────────────
+    function doFetch(method) {
+      const el = document.getElementById("fetch-result");
+      el.textContent = "发送中...";
+      const opts = {
+        method,
+        headers: { "Content-Type": "application/json" },
+      };
+      if (method === "POST") {
+        opts.body = JSON.stringify({ test: true, timestamp: Date.now(), source: "test-page" });
+      }
+      const url = method === "ERROR"
+        ? "/api/non-existent-404"
+        : method === "POST"
+        ? "/api/test-fetch-post"
+        : "/api/test-fetch-get";
+      fetch(url, opts)
+        .then((r) => r.text())
+        .then((t) => { el.textContent = `[${method}] 状态: OK, 响应: ` + t.substring(0, 80); })
+        .catch((e) => { el.textContent = `[${method}] 错误: ` + e.message; });
+    }
+
+    // ── XHR 测试 ──────────────────────────
+    function doXHR(method) {
+      const el = document.getElementById("xhr-result");
+      el.textContent = "发送中...";
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, method === "POST" ? "/api/test-xhr-post" : "/api/test-xhr-get");
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.onload = () => { el.textContent = `[XHR ${method}] 状态: ${xhr.status}`; };
+      xhr.onerror = () => { el.textContent = `[XHR ${method}] 网络错误`; };
+      xhr.send(method === "POST" ? JSON.stringify({ xhrTest: true }) : null);
+    }
+
+    // ── 动态 DOM 插入 ─────────────────────
+    function doDynamicInsert() {
+      const container = document.getElementById("dynamic-container");
+      container.innerHTML = "";
+      const el = document.getElementById("dom-result");
+      el.textContent = "正在插入...";
+
+      // 动态 script
+      const s = document.createElement("script");
+      s.src = "/api/test-dynamic-script.js?t=" + Date.now();
+      s.dataset.test = "dynamic-script";
+      container.appendChild(s);
+
+      // 动态 img
+      const img = document.createElement("img");
+      img.src = "/api/test-image.png?t=" + Date.now();
+      img.width = 1;
+      img.height = 1;
+      img.className = "dynamic-img";
+      container.appendChild(img);
+
+      // 动态 iframe
+      setTimeout(() => {
+        const iframe = document.createElement("iframe");
+        iframe.src = "/api/test-iframe?t=" + Date.now();
+        iframe.style.display = "none";
+        iframe.name = "test-iframe";
+        container.appendChild(iframe);
+        el.textContent = "已插入 script + img + iframe，检查 popup";
+      }, 2000);
+    }
+
+    // ── 程序化 click（不应触发录制）───────
+    setTimeout(() => {
+      document.getElementById("test-btn-1").dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    }, 500);
+  </script>
+</body>
+</html>

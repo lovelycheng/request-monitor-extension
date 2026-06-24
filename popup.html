@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<title>Request Monitor</title>
+<style>
+/* ════════════════ Reset ════════════════ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--text3);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--text2)}
+
+/* ════════════════ Theme — Precision Instrument ════════════════ */
+:root{
+  --bg: #07070e;
+  --bg2: #0f0f1a;
+  --bg3: #1a1a2c;
+  --border: #222240;
+  --text: #e2e2f2;
+  --text2: #8888a2;
+  --text3: #525272;
+  --accent: #ff4a2e;
+  --accent2: #ff6b54;
+  --green: #26c96b;
+  --orange: #e0a818;
+  --red: #e8453c;
+  --purple: #9b6dff;
+  --yellow: #e6c030;
+  --pink: #f062a0;
+}
+
+body{
+  width:880px;height:560px;
+  font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:11px;font-weight:400;line-height:1.4;
+  display:flex;flex-direction:column;
+  background:var(--bg);color:var(--text);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* ════════════════ Header ════════════════ */
+.header{
+  display:flex;align-items:center;gap:8px;padding:8px 14px;
+  background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.header-brand{
+  display:flex;align-items:center;gap:7px;
+  font-size:12px;font-weight:600;color:var(--text);
+  letter-spacing:-0.01em;text-transform:uppercase;
+}
+.header-brand svg{width:16px;height:16px;flex-shrink:0;color:var(--accent)}
+.header-divider{width:1px;height:16px;background:var(--border);margin:0 4px;align-self:stretch}
+
+/* ════════════════ Toolbar ════════════════ */
+.toolbar button, .toolbar-group button{
+  padding:4px 9px;border:none;border-radius:4px;background:transparent;
+  color:var(--text2);cursor:pointer;font-size:11px;font-weight:500;
+  transition:background .12s,color .12s;
+  white-space:nowrap;display:inline-flex;align-items:center;gap:4px;
+}
+.toolbar button:hover{background:var(--bg3);color:var(--text)}
+.toolbar button.primary{background:var(--accent);color:#fff;font-weight:600}
+.toolbar button.primary:hover{background:var(--accent2)}
+.toolbar button.danger:hover{background:var(--red);color:#fff}
+.toolbar-group{
+  display:flex;gap:1px;padding:2px;border-radius:4px;background:var(--bg3);
+}
+.toolbar .count{
+  margin-left:auto;color:var(--text3);font-size:10px;font-weight:500;
+  background:var(--bg3);padding:3px 8px;border-radius:8px;white-space:nowrap;
+}
+
+/* ════════════════ Filter bar ════════════════ */
+.filter-row{
+  display:flex;gap:6px;padding:6px 14px;background:var(--bg);
+  border-bottom:1px solid var(--border);flex-shrink:0;align-items:center;
+}
+.filter-row input{
+  flex:1;padding:5px 10px;border:1px solid var(--border);border-radius:4px;
+  background:var(--bg2);color:var(--text);font-size:11px;outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+.filter-row input::placeholder{color:var(--text3)}
+.filter-row input:focus{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.filter-row select{
+  padding:5px 6px;border:1px solid var(--border);border-radius:4px;
+  background:var(--bg2);color:var(--text);font-size:11px;outline:none;
+  cursor:pointer;transition:border-color .15s,box-shadow .15s;
+  appearance:none;padding-right:20px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238888a2'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 6px center;
+}
+.filter-row select:focus{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+
+/* ════════════════ Request list ════════════════ */
+#request-list{flex:1;overflow-y:auto;padding:2px 0}
+.request-item{
+  display:flex;align-items:center;gap:8px;padding:5px 14px;
+  border-bottom:1px solid var(--border);cursor:pointer;
+  transition:background .08s;position:relative;
+}
+.request-item:hover{background:var(--bg2)}
+.request-item.selected{background:rgba(255,74,46,.06);border-bottom-color:transparent}
+.request-item.selected+.request-item{border-top-color:transparent}
+.request-item input[type=checkbox]{
+  flex-shrink:0;width:13px;height:13px;
+  accent-color:var(--accent);border-radius:3px;cursor:pointer;
+}
+
+/* ── Badges ── */
+.source-badge{
+  font-size:8px;padding:2px 5px;border-radius:3px;flex-shrink:0;
+  min-width:20px;text-align:center;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;line-height:1.2;
+  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+.source-badge.webRequest{background:var(--green);color:#fff}
+.source-badge.xhr{background:var(--accent);color:#fff}
+.source-badge.fetch{background:var(--purple);color:#fff}
+.source-badge.dom{background:var(--yellow);color:#0f0f1a}
+.source-badge.event{background:var(--pink);color:#fff}
+.source-badge.action{background:var(--orange);color:#0f0f1a}
+
+.method-badge{
+  min-width:34px;text-align:center;padding:2px 5px;border-radius:3px;
+  font-size:9px;font-weight:700;flex-shrink:0;letter-spacing:.04em;line-height:1.2;
+  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+.method-badge.GET{background:var(--green);color:#fff}
+.method-badge.POST{background:var(--accent);color:#fff}
+.method-badge.PUT{background:var(--yellow);color:#0f0f1a}
+.method-badge.DELETE{background:var(--red);color:#fff}
+.method-badge.PATCH{background:var(--purple);color:#fff}
+
+.status-code{
+  min-width:30px;text-align:center;padding:2px 4px;border-radius:3px;
+  font-size:9px;font-weight:700;flex-shrink:0;line-height:1.2;
+  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+.status-code.s2xx{background:rgba(38,201,107,.12);color:var(--green)}
+.status-code.s3xx{background:rgba(224,168,24,.12);color:var(--orange)}
+.status-code.s4xx{background:rgba(232,69,60,.12);color:var(--red)}
+.status-code.s5xx{background:rgba(232,69,60,.16);color:var(--red)}
+
+.request-url{
+  flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  font-size:10px;color:var(--text2);
+  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+}
+
+.btn-hide{
+  display:none;width:18px;height:18px;line-height:16px;text-align:center;
+  border:none;border-radius:3px;background:transparent;color:var(--text3);
+  font-size:13px;cursor:pointer;flex-shrink:0;transition:all .12s;
+}
+.request-item:hover .btn-hide{display:flex;align-items:center;justify-content:center}
+.btn-hide:hover{background:var(--red);color:#fff}
+
+/* ════════════════ Detail panel ════════════════ */
+.detail-panel{
+  display:none;flex-direction:column;max-height:320px;overflow-y:auto;
+  border-top:1px solid var(--accent);background:var(--bg2);flex-shrink:0;
+}
+.detail-panel.visible{display:flex}
+.detail-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 14px;background:var(--bg);position:sticky;top:0;z-index:2;
+  border-bottom:1px solid var(--border);
+}
+.detail-header h3{color:var(--accent);font-size:11px;font-weight:600;letter-spacing:-.01em}
+.detail-header .close-btn{
+  padding:3px 8px;border:none;border-radius:3px;background:transparent;
+  color:var(--text3);cursor:pointer;font-size:12px;transition:all .12s;
+}
+.detail-header .close-btn:hover{background:var(--red);color:#fff}
+.detail-body{padding:10px 14px}
+.detail-body h3{color:var(--accent);font-size:11px;font-weight:600;margin-bottom:8px}
+.detail-body .label{
+  color:var(--text3);font-weight:600;font-size:9px;text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:1px;margin-top:6px;
+}
+.detail-body .label:first-child{margin-top:0}
+.detail-body .value{
+  color:var(--text);word-break:break-all;font-size:11px;margin-bottom:4px;
+}
+.detail-body pre{
+  background:var(--bg);border:1px solid var(--border);border-radius:4px;
+  padding:8px;overflow-x:auto;font-size:9px;color:var(--green);
+  max-height:140px;
+  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+  line-height:1.5;
+}
+
+/* ════════════════ Modal ════════════════ */
+.modal-overlay{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,.65);z-index:100;justify-content:center;align-items:center;
+}
+.modal-overlay.visible{display:flex;animation:fadeIn .15s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-box{
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:16px;width:440px;max-height:360px;display:flex;flex-direction:column;
+  box-shadow:0 12px 48px rgba(0,0,0,.6);
+}
+.modal-box h3{color:var(--text);font-size:12px;font-weight:600;margin-bottom:10px}
+.modal-list{flex:1;overflow-y:auto;margin-bottom:8px}
+.modal-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 10px;border-radius:4px;margin-bottom:3px;background:var(--bg3);
+  font-size:11px;transition:background .12s;
+}
+.modal-item:hover{background:var(--border)}
+.modal-item .pattern{
+  color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:10px;
+}
+.modal-item button{
+  padding:3px 10px;border:none;border-radius:3px;background:var(--border);
+  color:var(--text);cursor:pointer;font-size:10px;margin-left:8px;transition:all .12s;
+}
+.modal-item button:hover{background:var(--accent);color:#fff}
+.modal-footer{display:flex;gap:6px;justify-content:flex-end}
+.modal-footer button{
+  padding:5px 12px;border:1px solid var(--border);border-radius:4px;
+  background:transparent;color:var(--text2);cursor:pointer;font-size:11px;transition:all .12s;
+}
+.modal-footer button:hover{background:var(--bg3);color:var(--text)}
+.modal-footer button.danger:hover{background:var(--red);border-color:var(--red);color:#fff}
+
+/* ════════════════ Empty state ════════════════ */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;color:var(--text3);font-size:12px;gap:8px;
+}
+.empty-state svg{opacity:.2;margin-bottom:6px;color:var(--text3)}
+
+/* ════════════════ Recording indicator ════════════════ */
+.badge-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.badge-dot.live{
+  background:var(--accent);
+  box-shadow:0 0 0 0 var(--accent);
+  animation:signal-pulse 2s ease-in-out infinite;
+}
+@keyframes signal-pulse{
+  0%  {box-shadow:0 0 0 0 rgba(255,74,46,.7)}
+  50% {box-shadow:0 0 0 4px rgba(255,74,46,0)}
+  100%{box-shadow:0 0 0 0 rgba(255,74,46,0)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .badge-dot.live{animation:none;box-shadow:none}
+  .modal-overlay.visible{animation:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ Header ══ -->
+<div class="header">
+  <div class="header-brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="2" fill="currentColor"/><circle cx="12" cy="10" r="2" fill="currentColor"/></svg>
+    Request Monitor
+  </div>
+  <div class="header-divider"></div>
+  <span class="badge-dot live"></span>
+  <span style="color:var(--text3);font-size:10px">录制中</span>
+  <span class="count" id="record-count" style="margin-left:auto">0 条</span>
+</div>
+
+<!-- ══ Toolbar ══ -->
+<div class="toolbar" style="padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border)">
+  <div class="toolbar-group">
+    <button id="btn-select-all">全选</button>
+    <button id="btn-deselect">取消</button>
+  </div>
+  <button id="btn-clear" class="danger">清空</button>
+  <button id="btn-manage-block">屏蔽</button>
+  <span style="width:1px;height:20px;background:var(--border);margin:0 4px"></span>
+  <button id="btn-copy-json">复制</button>
+  <button id="btn-export-json">导出 JSON</button>
+  <button id="btn-export-script" class="primary">导出脚本</button>
+</div>
+
+<!-- ══ Filter ══ -->
+<div class="filter-row">
+  <input type="text" id="filter-url" placeholder="输入 URL 关键词过滤..." />
+  <select id="filter-method">
+    <option value="">方法</option>
+    <option>GET</option><option>POST</option><option>PUT</option>
+    <option>DELETE</option><option>PATCH</option>
+  </select>
+  <select id="filter-source">
+    <option value="">来源</option>
+    <option value="webRequest">HTTP</option>
+    <option value="xhr">XHR</option>
+    <option value="fetch">Fetch</option>
+    <option value="dom">DOM</option>
+    <option value="event">事件</option>
+    <option value="action">操作</option>
+  </select>
+  <select id="filter-status">
+    <option value="">状态</option>
+    <option value="2">2xx</option>
+    <option value="3">3xx</option>
+    <option value="4">4xx</option>
+    <option value="5">5xx</option>
+    <option value="0">错误</option>
+  </select>
+</div>
+
+<!-- ══ List ══ -->
+<div id="request-list">
+  <div class="empty-state">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    等待网络请求...
+  </div>
+</div>
+
+<!-- ══ Detail ══ -->
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <h3>请求详情</h3>
+    <button class="close-btn" id="close-detail">✕</button>
+  </div>
+  <div class="detail-body" id="detail-content"></div>
+</div>
+
+<!-- ══ Block Modal ══ -->
+<div class="modal-overlay" id="block-modal">
+  <div class="modal-box">
+    <h3>🚫 屏蔽列表</h3>
+    <div class="modal-list" id="block-list"></div>
+    <div class="modal-footer">
+      <button class="danger" id="btn-block-clear-all">清空全部</button>
+      <button id="btn-block-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

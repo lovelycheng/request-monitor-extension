@@ -1,0 +1,28 @@
+# ── 凭据 & 会话 (不提交) ──
+credentials.json
+browser-state.json
+
+# ── 依赖 ──
+node_modules/
+
+# ── 录制输出 ──
+recordings/
+
+# ── AI 记忆文件 ──
+AGENTS.md
+CLAUDE.md
+
+# ── .开头配置文件夹 ──
+.opencode/
+
+# ── IDE / 编辑器 ──
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── 操作系统 ──
+.DS_Store
+Thumbs.db
+desktop.ini
