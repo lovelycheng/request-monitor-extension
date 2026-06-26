@@ -86,3 +86,27 @@
 |---|------|------|------|
 | 51 | 无头浏览器录制 | Playwright 打开页面自动拦截请求 | `record.js` |
 | 52 | 登录流程回放（华为云示例） | 密码登录 → SMS → 保存状态 | `login-test.js` |
+
+## 八、响应体可靠性增强
+
+> 修复「右侧详情不展示返回 body」bug：慢请求(>2s)时间戳失配导致 webRequest 与 XHR/fetch 合并失败、responseBody 丢失。
+
+| # | 功能 | 说明 | 代码位置 |
+|---|------|------|----------|
+| 53 | XHR/fetch 消息携带发起时间 | 消息 data 含 timeStamp（发起时间，非完成时间），对齐 webRequest 合并窗口 | `content.js` buildXhrCompleteData / buildFetchCompleteData |
+| 54 | 慢请求(>2s)响应体正常合并 | 发起时间对齐后，2 秒合并窗口对慢请求生效，responseBody 不再丢失到第二条记录 | `background.js` persistRequest + XHR_COMPLETE/FETCH_COMPLETE 消息处理 |
+| 55 | XHR responseType 非 text 响应体降级 | arraybuffer / blob / document 等用 response 字段兜底解码，不再静默丢失 | `content.js` extractResponseBody |
+| 56 | fetch 响应体读取失败兜底 | clone.text() 失败仍发 FETCH_COMPLETE（responseBody=null），请求记录不丢失 | `content.js` fetch 劫持 .catch 分支 |
+| 57 | 详情面板自动刷新 | 数据更新后重新 showDetail，responseBody 合并完成即时呈现，无需手动重点击 | `popup.js` loadRequests |
+
+## 九、UI 设计语言：示波器琥珀（Oscilloscope Amber）
+
+> 全新视觉设计语言，致敬专业测量仪器（示波器 / CRT 终端）。深青墨底色（带蓝绿底调）+ 磷光琥珀强调（#ffb000）+ 等宽数据字体，刻意避开「近黑+橙红」AI 默认配色与俗套赛博朋克绿/红。
+
+| # | 功能 | 说明 | 代码位置 |
+|---|------|------|----------|
+| 58 | 全新视觉设计语言 | 深青墨底色 + 磷光琥珀强调 + 等宽数据字体，工程仪器质感 | `popup.html` :root + 全局 CSS |
+| 59 | 磷光终端代码块（签名元素） | 请求体/响应体/响应头/Cookies 代码块：深青墨底 + 琥珀字 + 左侧 2px 琥珀信号条 | `popup.html` .pre-body |
+| 60 | 仪器铭牌风标签 | 各区块标题等宽大写 + 琥珀小竖条前缀 | `popup.html` .detail-body .label |
+| 61 | 信号条选中/活动态 | 列表行左侧 2px 琥珀信号条，活动态加辉光 | `popup.html` .request-item::before |
+| 62 | 冷暖对比状态色 | 2xx 信号青绿（冷）/ 4xx-5xx 故障红（暖），与琥珀主色形成冷暖对比 | `popup.html` .status-code / .method-badge / .source-badge |

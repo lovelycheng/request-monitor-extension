@@ -6,108 +6,134 @@
 <style>
 /* ════════════════ Reset ════════════════ */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--text3);border-radius:2px}
-::-webkit-scrollbar-thumb:hover{background:var(--text2)}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--ice-3)}
 
-/* ════════════════ Theme — Precision Instrument ════════════════ */
+/* ════════════════ Theme: 示波器琥珀 Oscilloscope Amber ════════════════
+   抓包工具 = 信号捕获仪器。深青墨底色（带蓝绿底调，比纯黑有层次）
+   + 磷光琥珀强调（#ffb000，示波器/CRT 经典色）+ 信号青绿（成功态）。
+   刻意避开"近黑+橙红"的 AI 默认配色与俗套赛博朋克绿/红。 */
 :root{
-  --bg: #07070e;
-  --bg2: #0f0f1a;
-  --bg3: #1a1a2c;
-  --border: #222240;
-  --text: #e2e2f2;
-  --text2: #8888a2;
-  --text3: #525272;
-  --accent: #ff4a2e;
-  --accent2: #ff6b54;
-  --green: #26c96b;
-  --orange: #e0a818;
-  --red: #e8453c;
-  --purple: #9b6dff;
-  --yellow: #e6c030;
-  --pink: #f062a0;
+  --ink:#0a1416;        /* 主背景 深青墨 */
+  --ink-2:#102026;      /* 次级背景/面板 */
+  --ink-3:#183038;      /* 表面/悬停 */
+  --line:#1d3a44;       /* 分隔线/边框 青调 */
+  --amber:#ffb000;      /* 磷光琥珀 主强调 */
+  --amber-2:#ffc44d;    /* 亮琥珀 悬停 */
+  --amber-soft:rgba(255,176,0,.14);
+  --signal:#00e5b0;     /* 信号青绿 2xx */
+  --warn:#ffb84d;       /* 警告 3xx/4xx */
+  --fault:#ff6b6b;      /* 故障 5xx/错误 */
+  --purple:#9b7eff;     /* fetch */
+  --yellow:#e6c030;     /* dom */
+  --pink:#f062a0;       /* event */
+  --orange:#e0a818;     /* action */
+  --ice:#d4e8ee;        /* 主文字 冰银带青 */
+  --ice-2:#7a98a3;      /* 次级文字 */
+  --ice-3:#4a6670;      /* 三级/占位 */
+  --mono:'JetBrains Mono','Cascadia Code','Fira Code',ui-monospace,monospace;
+  /* 兼容 body 内旧 inline style 引用 */
+  --text3:var(--ice-3);
+  --border:var(--line);
 }
 
 body{
-  width:880px;height:560px;
+  min-width:720px;min-height:560px;
   font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
-  font-size:11px;font-weight:400;line-height:1.4;
+  font-size:11px;font-weight:400;line-height:1.45;
   display:flex;flex-direction:column;
-  background:var(--bg);color:var(--text);
+  background:var(--ink);color:var(--ice);
   overflow:hidden;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
 
+/* ════════════════ Layout ════════════════ */
+.main-layout{display:flex;flex:1;overflow:hidden}
+.list-panel{display:flex;flex-direction:column;flex:1;min-width:420px;overflow:hidden}
+.detail-panel{
+  width:380px;flex-shrink:0;overflow-y:auto;overflow-x:hidden;
+  border-left:1px solid var(--line);background:var(--ink-2);
+}
+.detail-panel:not(.visible){display:none}
+
 /* ════════════════ Header ════════════════ */
 .header{
-  display:flex;align-items:center;gap:8px;padding:8px 14px;
-  background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;gap:8px;padding:9px 14px;
+  background:linear-gradient(180deg,var(--ink-2) 0%,var(--ink) 100%);
+  border-bottom:1px solid var(--line);flex-shrink:0;
 }
 .header-brand{
   display:flex;align-items:center;gap:7px;
-  font-size:12px;font-weight:600;color:var(--text);
-  letter-spacing:-0.01em;text-transform:uppercase;
+  font-family:var(--mono);
+  font-size:11px;font-weight:700;color:var(--amber);
+  letter-spacing:.08em;text-transform:uppercase;
 }
-.header-brand svg{width:16px;height:16px;flex-shrink:0;color:var(--accent)}
-.header-divider{width:1px;height:16px;background:var(--border);margin:0 4px;align-self:stretch}
+.header-brand svg{width:16px;height:16px;flex-shrink:0;color:var(--amber);filter:drop-shadow(0 0 3px var(--amber-soft))}
+.header-divider{width:1px;height:16px;background:var(--line);margin:0 4px;align-self:stretch}
 
 /* ════════════════ Toolbar ════════════════ */
+.toolbar{display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--ink-2);border-bottom:1px solid var(--line);flex-shrink:0;flex-wrap:wrap}
 .toolbar button, .toolbar-group button{
-  padding:4px 9px;border:none;border-radius:4px;background:transparent;
-  color:var(--text2);cursor:pointer;font-size:11px;font-weight:500;
-  transition:background .12s,color .12s;
+  padding:4px 10px;border:1px solid var(--line);border-radius:3px;background:transparent;
+  color:var(--ice-2);cursor:pointer;font-size:11px;font-weight:500;
+  transition:all .12s;
   white-space:nowrap;display:inline-flex;align-items:center;gap:4px;
 }
-.toolbar button:hover{background:var(--bg3);color:var(--text)}
-.toolbar button.primary{background:var(--accent);color:#fff;font-weight:600}
-.toolbar button.primary:hover{background:var(--accent2)}
-.toolbar button.danger:hover{background:var(--red);color:#fff}
+.toolbar button:hover{background:var(--ink-3);color:var(--ice);border-color:var(--ice-3)}
+.toolbar button.primary{background:var(--amber);color:var(--ink);border-color:var(--amber);font-weight:700}
+.toolbar button.primary:hover{background:var(--amber-2);border-color:var(--amber-2);box-shadow:0 0 8px var(--amber-soft)}
+.toolbar button.danger:hover{background:var(--fault);color:#fff;border-color:var(--fault)}
 .toolbar-group{
-  display:flex;gap:1px;padding:2px;border-radius:4px;background:var(--bg3);
+  display:flex;gap:1px;padding:2px;border-radius:4px;background:var(--ink-3);
 }
+.toolbar-group button{border:1px solid transparent}
 .toolbar .count{
-  margin-left:auto;color:var(--text3);font-size:10px;font-weight:500;
-  background:var(--bg3);padding:3px 8px;border-radius:8px;white-space:nowrap;
+  margin-left:auto;color:var(--ice-3);font-size:10px;font-weight:600;
+  font-family:var(--mono);
+  background:var(--ink-3);padding:3px 9px;border-radius:8px;white-space:nowrap;
+  border:1px solid var(--line);
 }
 
 /* ════════════════ Filter bar ════════════════ */
 .filter-row{
-  display:flex;gap:6px;padding:6px 14px;background:var(--bg);
-  border-bottom:1px solid var(--border);flex-shrink:0;align-items:center;
+  display:flex;gap:6px;padding:7px 14px;background:var(--ink);
+  border-bottom:1px solid var(--line);flex-shrink:0;align-items:center;
 }
 .filter-row input{
-  flex:1;padding:5px 10px;border:1px solid var(--border);border-radius:4px;
-  background:var(--bg2);color:var(--text);font-size:11px;outline:none;
+  flex:1;padding:5px 10px;border:1px solid var(--line);border-radius:3px;
+  background:var(--ink-2);color:var(--ice);font-size:11px;outline:none;
   transition:border-color .15s,box-shadow .15s;
 }
-.filter-row input::placeholder{color:var(--text3)}
-.filter-row input:focus{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.filter-row input::placeholder{color:var(--ice-3)}
+.filter-row input:focus{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),0 0 8px var(--amber-soft)}
 .filter-row select{
-  padding:5px 6px;border:1px solid var(--border);border-radius:4px;
-  background:var(--bg2);color:var(--text);font-size:11px;outline:none;
+  padding:5px 6px;border:1px solid var(--line);border-radius:3px;
+  background:var(--ink-2);color:var(--ice);font-size:11px;outline:none;
   cursor:pointer;transition:border-color .15s,box-shadow .15s;
   appearance:none;padding-right:20px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238888a2'/%3E%3C/svg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23ffb000'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 6px center;
 }
-.filter-row select:focus{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.filter-row select:focus{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
 
 /* ════════════════ Request list ════════════════ */
 #request-list{flex:1;overflow-y:auto;padding:2px 0}
 .request-item{
-  display:flex;align-items:center;gap:8px;padding:5px 14px;
-  border-bottom:1px solid var(--border);cursor:pointer;
+  display:flex;align-items:center;gap:6px;padding:5px 10px;
+  border-bottom:1px solid var(--line);cursor:pointer;
   transition:background .08s;position:relative;
 }
-.request-item:hover{background:var(--bg2)}
-.request-item.selected{background:rgba(255,74,46,.06);border-bottom-color:transparent}
-.request-item.selected+.request-item{border-top-color:transparent}
+.request-item:hover{background:var(--ink-2)}
+.request-item.selected{background:var(--amber-soft);border-bottom-color:transparent}
+.request-item.selected::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--amber)}
+.request-item.active{background:rgba(255,176,0,.10)}
+.request-item.active::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--amber-2);box-shadow:0 0 6px var(--amber)}
 .request-item input[type=checkbox]{
   flex-shrink:0;width:13px;height:13px;
-  accent-color:var(--accent);border-radius:3px;cursor:pointer;
+  accent-color:var(--amber);border-radius:3px;cursor:pointer;
 }
 
 /* ── Badges ── */
@@ -115,140 +141,163 @@ body{
   font-size:8px;padding:2px 5px;border-radius:3px;flex-shrink:0;
   min-width:20px;text-align:center;font-weight:700;letter-spacing:.04em;
   text-transform:uppercase;line-height:1.2;
-  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+  font-family:var(--mono);
 }
-.source-badge.webRequest{background:var(--green);color:#fff}
-.source-badge.xhr{background:var(--accent);color:#fff}
+.source-badge.webRequest{background:var(--signal);color:var(--ink)}
+.source-badge.xhr{background:var(--amber);color:var(--ink)}
 .source-badge.fetch{background:var(--purple);color:#fff}
-.source-badge.dom{background:var(--yellow);color:#0f0f1a}
+.source-badge.dom{background:var(--yellow);color:var(--ink)}
 .source-badge.event{background:var(--pink);color:#fff}
-.source-badge.action{background:var(--orange);color:#0f0f1a}
+.source-badge.action{background:var(--orange);color:var(--ink)}
 
 .method-badge{
   min-width:34px;text-align:center;padding:2px 5px;border-radius:3px;
   font-size:9px;font-weight:700;flex-shrink:0;letter-spacing:.04em;line-height:1.2;
-  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+  font-family:var(--mono);
 }
-.method-badge.GET{background:var(--green);color:#fff}
-.method-badge.POST{background:var(--accent);color:#fff}
-.method-badge.PUT{background:var(--yellow);color:#0f0f1a}
-.method-badge.DELETE{background:var(--red);color:#fff}
+.method-badge.GET{background:var(--signal);color:var(--ink)}
+.method-badge.POST{background:var(--amber);color:var(--ink)}
+.method-badge.PUT{background:var(--yellow);color:var(--ink)}
+.method-badge.DELETE{background:var(--fault);color:#fff}
 .method-badge.PATCH{background:var(--purple);color:#fff}
 
 .status-code{
-  min-width:30px;text-align:center;padding:2px 4px;border-radius:3px;
+  min-width:28px;text-align:center;padding:2px 3px;border-radius:3px;
   font-size:9px;font-weight:700;flex-shrink:0;line-height:1.2;
-  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+  font-family:var(--mono);
 }
-.status-code.s2xx{background:rgba(38,201,107,.12);color:var(--green)}
-.status-code.s3xx{background:rgba(224,168,24,.12);color:var(--orange)}
-.status-code.s4xx{background:rgba(232,69,60,.12);color:var(--red)}
-.status-code.s5xx{background:rgba(232,69,60,.16);color:var(--red)}
+.status-code.s2xx{background:rgba(0,229,176,.14);color:var(--signal)}
+.status-code.s3xx{background:rgba(255,184,77,.14);color:var(--warn)}
+.status-code.s4xx{background:rgba(255,107,107,.14);color:var(--fault)}
+.status-code.s5xx{background:rgba(255,107,107,.18);color:var(--fault)}
 
 .request-url{
   flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
-  font-size:10px;color:var(--text2);
-  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+  font-size:10px;color:var(--ice-2);
+  font-family:var(--mono);
 }
 
 .btn-hide{
-  display:none;width:18px;height:18px;line-height:16px;text-align:center;
-  border:none;border-radius:3px;background:transparent;color:var(--text3);
-  font-size:13px;cursor:pointer;flex-shrink:0;transition:all .12s;
+  display:flex;align-items:center;justify-content:center;
+  width:18px;height:18px;line-height:16px;text-align:center;
+  border:none;border-radius:3px;background:transparent;color:var(--ice-3);
+  font-size:13px;cursor:pointer;flex-shrink:0;
+  opacity:0.4;transition:opacity .12s,background .12s,color .12s;
 }
-.request-item:hover .btn-hide{display:flex;align-items:center;justify-content:center}
-.btn-hide:hover{background:var(--red);color:#fff}
+.btn-hide:hover{background:var(--fault);color:#fff;opacity:1}
 
-/* ════════════════ Detail panel ════════════════ */
-.detail-panel{
-  display:none;flex-direction:column;max-height:320px;overflow-y:auto;
-  border-top:1px solid var(--accent);background:var(--bg2);flex-shrink:0;
-}
-.detail-panel.visible{display:flex}
+/* ════════════════ Detail panel (right side) ════════════════ */
 .detail-header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:8px 14px;background:var(--bg);position:sticky;top:0;z-index:2;
-  border-bottom:1px solid var(--border);
+  padding:9px 12px;background:var(--ink);position:sticky;top:0;z-index:2;
+  border-bottom:1px solid var(--line);
 }
-.detail-header h3{color:var(--accent);font-size:11px;font-weight:600;letter-spacing:-.01em}
+.detail-header h3{color:var(--amber);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .detail-header .close-btn{
   padding:3px 8px;border:none;border-radius:3px;background:transparent;
-  color:var(--text3);cursor:pointer;font-size:12px;transition:all .12s;
+  color:var(--ice-3);cursor:pointer;font-size:12px;transition:all .12s;
 }
-.detail-header .close-btn:hover{background:var(--red);color:#fff}
-.detail-body{padding:10px 14px}
-.detail-body h3{color:var(--accent);font-size:11px;font-weight:600;margin-bottom:8px}
+.detail-header .close-btn:hover{background:var(--fault);color:#fff}
+.detail-body{padding:12px}
+.detail-body h3{color:var(--amber);font-size:11px;font-weight:600;margin-bottom:8px}
 .detail-body .label{
-  color:var(--text3);font-weight:600;font-size:9px;text-transform:uppercase;
-  letter-spacing:.06em;margin-bottom:1px;margin-top:6px;
+  color:var(--ice-2);font-weight:700;font-size:9px;text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:5px;margin-top:12px;
+  font-family:var(--mono);
+  display:flex;align-items:center;gap:6px;
 }
+.detail-body .label::before{content:"";width:3px;height:9px;background:var(--amber);border-radius:1px}
 .detail-body .label:first-child{margin-top:0}
 .detail-body .value{
-  color:var(--text);word-break:break-all;font-size:11px;margin-bottom:4px;
+  color:var(--ice);word-break:break-all;font-size:11px;margin-bottom:4px;
 }
 .detail-body pre{
-  background:var(--bg);border:1px solid var(--border);border-radius:4px;
-  padding:8px;overflow-x:auto;font-size:9px;color:var(--green);
+  background:var(--ink);border:1px solid var(--line);border-radius:4px;
+  padding:8px;overflow-x:auto;font-size:9px;color:var(--signal);
   max-height:140px;
-  font-family:'JetBrains Mono','Cascadia Code','Fira Code',monospace;
+  font-family:var(--mono);
   line-height:1.5;
+}
+/* ── Detail panel: structured layout ── */
+.detail-kv{
+  display:block;font-size:10px;color:var(--ice-2);line-height:1.7;
+  word-break:break-all;
+}
+.detail-kv b{color:var(--ice);font-weight:600;margin-right:2px}
+/* 签名元素：磷光终端质感代码块 —— 深青墨底 + 琥珀字 + 左侧琥珀信号条 */
+.pre-body{
+  background:var(--ink);border:1px solid var(--line);border-radius:4px;
+  padding:8px 10px;overflow-x:auto;font-size:9px;color:var(--amber);
+  max-height:240px;white-space:pre-wrap;word-break:break-all;
+  font-family:var(--mono);
+  line-height:1.6;margin-bottom:2px;
+  border-left:2px solid var(--amber);
+  box-shadow:inset 0 0 24px rgba(255,176,0,.04);
+}
+.detail-empty{
+  display:flex;align-items:center;justify-content:center;
+  height:100%;color:var(--ice-3);font-size:12px;text-align:center;padding:20px;
+  font-family:var(--mono);letter-spacing:.04em;
 }
 
 /* ════════════════ Modal ════════════════ */
 .modal-overlay{
   display:none;position:fixed;top:0;left:0;width:100%;height:100%;
-  background:rgba(0,0,0,.65);z-index:100;justify-content:center;align-items:center;
+  background:rgba(5,10,12,.78);z-index:100;justify-content:center;align-items:center;
+  backdrop-filter:blur(2px);
 }
 .modal-overlay.visible{display:flex;animation:fadeIn .15s}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .modal-box{
-  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  background:var(--ink-2);border:1px solid var(--line);border-radius:6px;
   padding:16px;width:440px;max-height:360px;display:flex;flex-direction:column;
-  box-shadow:0 12px 48px rgba(0,0,0,.6);
+  box-shadow:0 12px 48px rgba(0,0,0,.6),0 0 0 1px var(--line);
 }
-.modal-box h3{color:var(--text);font-size:12px;font-weight:600;margin-bottom:10px}
+.modal-box h3{color:var(--amber);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;margin-bottom:10px}
 .modal-list{flex:1;overflow-y:auto;margin-bottom:8px}
 .modal-item{
   display:flex;align-items:center;justify-content:space-between;
-  padding:5px 10px;border-radius:4px;margin-bottom:3px;background:var(--bg3);
+  padding:6px 10px;border-radius:3px;margin-bottom:3px;background:var(--ink-3);
   font-size:11px;transition:background .12s;
+  border:1px solid var(--line);
 }
-.modal-item:hover{background:var(--border)}
+.modal-item:hover{background:var(--ink);border-color:var(--ice-3)}
 .modal-item .pattern{
-  color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;
-  white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:10px;
+  color:var(--ice-2);flex:1;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-family:var(--mono);font-size:10px;
 }
 .modal-item button{
-  padding:3px 10px;border:none;border-radius:3px;background:var(--border);
-  color:var(--text);cursor:pointer;font-size:10px;margin-left:8px;transition:all .12s;
+  padding:3px 10px;border:1px solid var(--line);border-radius:3px;background:transparent;
+  color:var(--ice);cursor:pointer;font-size:10px;margin-left:8px;transition:all .12s;
 }
-.modal-item button:hover{background:var(--accent);color:#fff}
+.modal-item button:hover{background:var(--amber);color:var(--ink);border-color:var(--amber)}
 .modal-footer{display:flex;gap:6px;justify-content:flex-end}
 .modal-footer button{
-  padding:5px 12px;border:1px solid var(--border);border-radius:4px;
-  background:transparent;color:var(--text2);cursor:pointer;font-size:11px;transition:all .12s;
+  padding:5px 12px;border:1px solid var(--line);border-radius:4px;
+  background:transparent;color:var(--ice-2);cursor:pointer;font-size:11px;transition:all .12s;
 }
-.modal-footer button:hover{background:var(--bg3);color:var(--text)}
-.modal-footer button.danger:hover{background:var(--red);border-color:var(--red);color:#fff}
+.modal-footer button:hover{background:var(--ink-3);color:var(--ice);border-color:var(--ice-3)}
+.modal-footer button.danger:hover{background:var(--fault);border-color:var(--fault);color:#fff}
 
 /* ════════════════ Empty state ════════════════ */
 .empty-state{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  height:100%;color:var(--text3);font-size:12px;gap:8px;
+  height:100%;color:var(--ice-3);font-size:12px;gap:8px;
+  font-family:var(--mono);letter-spacing:.04em;
 }
-.empty-state svg{opacity:.2;margin-bottom:6px;color:var(--text3)}
+.empty-state svg{opacity:.2;margin-bottom:6px;color:var(--amber)}
 
 /* ════════════════ Recording indicator ════════════════ */
 .badge-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .badge-dot.live{
-  background:var(--accent);
-  box-shadow:0 0 0 0 var(--accent);
+  background:var(--amber);
+  box-shadow:0 0 0 0 var(--amber);
   animation:signal-pulse 2s ease-in-out infinite;
 }
 @keyframes signal-pulse{
-  0%  {box-shadow:0 0 0 0 rgba(255,74,46,.7)}
-  50% {box-shadow:0 0 0 4px rgba(255,74,46,0)}
-  100%{box-shadow:0 0 0 0 rgba(255,74,46,0)}
+  0%  {box-shadow:0 0 0 0 rgba(255,176,0,.7)}
+  50% {box-shadow:0 0 0 4px rgba(255,176,0,0)}
+  100%{box-shadow:0 0 0 0 rgba(255,176,0,0)}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -271,62 +320,70 @@ body{
   <span class="count" id="record-count" style="margin-left:auto">0 条</span>
 </div>
 
-<!-- ══ Toolbar ══ -->
-<div class="toolbar" style="padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border)">
-  <div class="toolbar-group">
-    <button id="btn-select-all">全选</button>
-    <button id="btn-deselect">取消</button>
-  </div>
-  <button id="btn-clear" class="danger">清空</button>
-  <button id="btn-manage-block">屏蔽</button>
-  <span style="width:1px;height:20px;background:var(--border);margin:0 4px"></span>
-  <button id="btn-copy-json">复制</button>
-  <button id="btn-export-json">导出 JSON</button>
-  <button id="btn-export-script" class="primary">导出脚本</button>
-</div>
+<div class="main-layout">
+  <!-- ══ Left: list panel ══ -->
+  <div class="list-panel">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <button id="btn-select-all">全选</button>
+        <button id="btn-deselect">取消</button>
+      </div>
+      <button id="btn-exclude" title="排除选中项（仅本次会话）">排除</button>
+      <button id="btn-restore-excluded" title="恢复所有排除项">恢复</button>
+      <span style="width:1px;height:20px;background:var(--border);margin:0 2px"></span>
+      <button id="btn-clear" class="danger">清空</button>
+      <button id="btn-manage-block">屏蔽</button>
+      <span style="width:1px;height:20px;background:var(--border);margin:0 2px"></span>
+      <button id="btn-copy-json">复制</button>
+      <button id="btn-export-json">导出JSON</button>
+      <button id="btn-export-script" class="primary">导出脚本</button>
+    </div>
 
-<!-- ══ Filter ══ -->
-<div class="filter-row">
-  <input type="text" id="filter-url" placeholder="输入 URL 关键词过滤..." />
-  <select id="filter-method">
-    <option value="">方法</option>
-    <option>GET</option><option>POST</option><option>PUT</option>
-    <option>DELETE</option><option>PATCH</option>
-  </select>
-  <select id="filter-source">
-    <option value="">来源</option>
-    <option value="webRequest">HTTP</option>
-    <option value="xhr">XHR</option>
-    <option value="fetch">Fetch</option>
-    <option value="dom">DOM</option>
-    <option value="event">事件</option>
-    <option value="action">操作</option>
-  </select>
-  <select id="filter-status">
-    <option value="">状态</option>
-    <option value="2">2xx</option>
-    <option value="3">3xx</option>
-    <option value="4">4xx</option>
-    <option value="5">5xx</option>
-    <option value="0">错误</option>
-  </select>
-</div>
+    <!-- Filter -->
+    <div class="filter-row">
+      <input type="text" id="filter-url" placeholder="输入 URL 关键词过滤..." />
+      <select id="filter-method">
+        <option value="">方法</option>
+        <option>GET</option><option>POST</option><option>PUT</option>
+        <option>DELETE</option><option>PATCH</option>
+      </select>
+      <select id="filter-source">
+        <option value="">来源</option>
+        <option value="webRequest">HTTP</option>
+        <option value="xhr">XHR</option>
+        <option value="fetch">Fetch</option>
+        <option value="dom">DOM</option>
+        <option value="event">事件</option>
+        <option value="action">操作</option>
+      </select>
+      <select id="filter-status">
+        <option value="">状态</option>
+        <option value="2">2xx</option><option value="3">3xx</option>
+        <option value="4">4xx</option><option value="5">5xx</option>
+        <option value="0">错误</option>
+      </select>
+    </div>
 
-<!-- ══ List ══ -->
-<div id="request-list">
-  <div class="empty-state">
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-    等待网络请求...
+    <!-- List -->
+    <div id="request-list">
+      <div class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        等待网络请求...
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- ══ Detail ══ -->
-<div class="detail-panel" id="detail-panel">
-  <div class="detail-header">
-    <h3>请求详情</h3>
-    <button class="close-btn" id="close-detail">✕</button>
+  <!-- ══ Right: detail panel ══ -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="detail-header">
+      <h3>请求详情</h3>
+      <button class="close-btn" id="close-detail">✕</button>
+    </div>
+    <div class="detail-body" id="detail-content">
+      <div class="detail-empty">← 点击左侧请求查看详情</div>
+    </div>
   </div>
-  <div class="detail-body" id="detail-content"></div>
 </div>
 
 <!-- ══ Block Modal ══ -->

@@ -95,3 +95,39 @@
 | 40 | 修改 background.js → 同步更新 tests/unit/background.test.js | 测试通过 |
 | 41 | 修改 popup.js → 同步更新 tests/unit/popup.test.js | 测试通过 |
 | 42 | `npx vitest run` 始终 39 passed | 全部绿色 |
+
+## 八、响应体可靠性（供测试人员编写用例）
+
+> 背景：修复「右侧详情不展示返回 body」bug 后新增的测试维度。bug 根因是慢请求(>2s)时间戳失配导致 webRequest 与 XHR/fetch 合并失败，responseBody 丢失到另一条记录。
+
+| # | 场景 | 操作 | 预期 |
+|---|------|------|------|
+| 43 | 慢请求(>2s)响应体展示 | 触发耗时 3-5 秒的 XHR，点击列表中该请求 | 右侧详情「响应体」区块正常展示返回 body |
+| 44 | 慢 fetch 响应体展示 | 触发耗时 >2s 的 fetch 请求 | 详情展示响应体，且列表只出现一条记录（webRequest 与 fetch 合并） |
+| 45 | 详情面板数据刷新 | 点击某请求展示详情（此时无响应体），等待数据合并 | 详情面板自动刷新，响应体即时呈现，无需手动重新点击 |
+| 46 | XHR responseType=arraybuffer 响应体降级 | 页面发起 responseType=arraybuffer 的 XHR | 详情仍能展示解码后的响应体（非空） |
+| 47 | XHR responseType=blob 响应体降级 | 页面发起 responseType=blob 的 XHR | 详情展示响应体或降级为字符串 |
+| 48 | fetch 响应体读取失败兜底 | 模拟 clone.text() 失败（如 body 被锁定） | 请求记录不丢失，详情响应体区块不展示（null）但其他字段正常 |
+| 49 | 快请求(<1s)响应体展示（回归） | 触发耗时 <500ms 的 XHR | 详情正常展示响应体（回归验证，确保未破坏快路径） |
+| 50 | 合并后字段完整 | 同一 POST 请求被 webRequest + XHR 双层捕获 | 单条记录含 requestBody + responseBody + responseHeaders + cookies |
+
+## 九、UI 视觉一致性（供测试人员编写用例）
+
+> 背景：UI 重新设计为「示波器琥珀（Oscilloscope Amber）」设计语言——深青墨底色 + 磷光琥珀强调 + 等宽数据字体，致敬专业测量仪器。
+
+| # | 场景 | 检查点 | 预期 |
+|---|------|--------|------|
+| 51 | 主背景色调 | 整体背景 | 深青墨色（带蓝绿底调），非纯黑 |
+| 52 | 品牌标识 | 顶部「Request Monitor」 | 等宽大写琥珀色，带字间距 |
+| 53 | 录制指示灯 | Header 圆点 | 琥珀色脉冲动画 |
+| 54 | 来源 badge 配色 | 各来源标签 | webRequest 青绿 / xhr 琥珀 / fetch 紫 / dom 黄 / event 粉 / action 橙 |
+| 55 | 方法 badge 配色 | GET/POST/PUT/DELETE/PATCH | GET 青绿 / POST 琥珀 / PUT 黄 / DELETE 红 / PATCH 紫 |
+| 56 | 状态码配色 | 2xx/3xx/4xx/5xx | 2xx 青绿 / 3xx 橙 / 4xx-5xx 红，半透明底 |
+| 57 | 列表选中态 | 勾选某行 | 左侧 2px 琥珀信号条 + 琥珀半透明底 |
+| 58 | 列表活动态 | 点击行展开详情 | 左侧琥珀信号条加亮 + 辉光 |
+| 59 | 详情代码块（签名元素） | 请求体/响应体/响应头/Cookies | 深青墨底 + 琥珀等宽字 + 左侧 2px 琥珀边 |
+| 60 | 详情标签 | 各区块标题 | 等宽大写 + 琥珀小竖条前缀 |
+| 61 | 过滤框聚焦 | 点击 URL 输入框 | 琥珀边框 + 琥珀光晕 |
+| 62 | 主按钮 | 「导出脚本」 | 琥珀底深色字 |
+| 63 | Modal 样式 | 屏蔽列表弹窗 | 深青墨卡片 + 青线边框 + 背景模糊 |
+| 64 | 空状态 | 无请求时列表 | 等宽字 + 琥珀图标 |

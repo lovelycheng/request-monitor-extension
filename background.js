@@ -3,12 +3,154 @@ let requests = [];
 let tabRequestMap = {};
 let seq = 1;
 let cookieJar = {};
+let _stateRestored = false; // 标记 restoreState 是否已完成
+
+// 静态资源类型：这些请求不录制（JS/CSS/图片/字体/媒体/WS/ping）
+const SKIP_TYPES = new Set([
+  "script",
+  "stylesheet",
+  "image",
+  "font",
+  "media",
+  "websocket",
+  "ping",
+  "other",
+]);
+
+// ════════════════════════════════════════════════════
+//  Service Worker 启动时从 storage 恢复状态
+//  MV3 中 SW 随时可能被 kill，内存状态会丢失，
+//  必须从 chrome.storage.local 恢复
+//  修复：合并而非覆盖，避免覆盖异步期间到达的消息
+// ════════════════════════════════════════════════════
+
+function restoreState() {
+  // 获取所有存储数据（requests + 分散的 rm_action_* 键）
+  chrome.storage.local.get(null, (result) => {
+    const existingIds = new Set(requests.map(r => r._id));
+    const merged = [...requests]; // 保留已通过消息到达的记录
+
+    // 1) 恢复 requests 数组
+    if (result.requests && Array.isArray(result.requests)) {
+      for (const r of result.requests) {
+        if (!existingIds.has(r._id)) {
+          merged.push(r);
+          existingIds.add(r._id);
+        }
+      }
+    }
+
+    // 2) 扫描孤儿 rm_action_* 键（content.js 直写但未合并的）
+    const orphanKeys = [];
+    for (const [key, value] of Object.entries(result)) {
+      if (key.startsWith('rm_action_') && value && typeof value === 'object') {
+        const isDuplicate = merged.some(r =>
+          r.source === value.source && r.action === value.action &&
+          r.timeStamp === value.timeStamp && r.url === value.url
+        );
+        if (!isDuplicate) {
+          value._id = 0; // 临时 _id，后续 persistRequest 会重新分配
+          merged.push(value);
+        }
+        orphanKeys.push(key);
+      }
+    }
+
+    // 排序 + 裁剪
+    merged.sort((a, b) => (a.timeStamp || 0) - (b.timeStamp || 0));
+    requests = merged.length > MAX_RECORDS ? merged.slice(-MAX_RECORDS) : merged;
+
+    // 为没有 _id 的记录重新分配 _id
+    for (const r of requests) {
+      if (!r._id || r._id === 0) {
+        r._id = nextId();
+      }
+    }
+
+    // 恢复 seq
+    const maxId = requests.reduce((max, r) => Math.max(max, r._id || 0), 0);
+    if (maxId >= seq) seq = maxId + 1;
+
+    // 清理孤儿键
+    if (orphanKeys.length > 0) {
+      chrome.storage.local.remove(orphanKeys);
+    }
+
+    // 持久化合并后的结果
+    chrome.storage.local.set({ requests: requests.slice(-200) });
+
+    _stateRestored = true;
+  });
+}
+
+restoreState();
+
+// ════════════════════════════════════════════════════
+//  监听 storage 变化：content.js 直写的 rm_action_* 键
+//  实时合并到 requests 中，避免轮询延迟
+// ════════════════════════════════════════════════════
+
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace !== 'local') return;
+  const keysToRemove = [];
+  for (const [key, change] of Object.entries(changes)) {
+    if (!key.startsWith('rm_action_')) continue;
+    const record = change.newValue;
+    if (!record || typeof record !== 'object') { keysToRemove.push(key); continue; }
+
+    // 去重：已存在于 requests 中则跳过
+    const isDuplicate = requests.some(r =>
+      r.source === record.source && r.action === record.action &&
+      r.timeStamp === record.timeStamp && r.url === record.url
+    );
+    if (!isDuplicate) {
+      persistRequest(record);
+    }
+    keysToRemove.push(key);
+  }
+  // 异步清理，不阻塞
+  if (keysToRemove.length > 0) {
+    chrome.storage.local.remove(keysToRemove);
+  }
+});
 
 function nextId() {
   return seq++;
 }
 
 function persistRequest(data) {
+  // 合并同源记录：webRequest 没有 responseBody，XHR/fetch 有
+  // 同一请求会同时被 webRequest 和 XHR/fetch 捕获，合并后只保留一条完整记录
+  const networkSources = ["webRequest", "xhr", "fetch"];
+  if (networkSources.includes(data.source) && data.url && data.method) {
+    const timeWindow = 2000; // 2 秒内视为同一请求
+    const existing = requests.find(r =>
+      networkSources.includes(r.source) &&
+      r.url === data.url &&
+      r.method === data.method &&
+      Math.abs((r.timeStamp || 0) - (data.timeStamp || 0)) < timeWindow
+    );
+    if (existing) {
+      // 合并：用新数据补全缺失字段
+      if (data.requestBody && !existing.requestBody) existing.requestBody = data.requestBody;
+      if (data.responseBody && !existing.responseBody) existing.responseBody = data.responseBody;
+      if (data.statusCode && !existing.statusCode) existing.statusCode = data.statusCode;
+      if (data.duration && !existing.duration) existing.duration = data.duration;
+      if (data.requestHeaders && !existing.requestHeaders) existing.requestHeaders = data.requestHeaders;
+      if (data.responseHeaders && !existing.responseHeaders) existing.responseHeaders = data.responseHeaders;
+      if (data.cookies && !existing.cookies) existing.cookies = data.cookies;
+      if (data.ip && !existing.ip) existing.ip = data.ip;
+      if (data.error && !existing.error) existing.error = data.error;
+      if (data.stack && !existing.stack) existing.stack = data.stack;
+      // 保留最早的 timeStamp
+      if (data.timeStamp && existing.timeStamp && data.timeStamp < existing.timeStamp) {
+        existing.timeStamp = data.timeStamp;
+      }
+      chrome.storage.local.set({ requests: requests.slice(-200) });
+      return;
+    }
+  }
+
   data._id = nextId();
   requests.push(data);
   if (requests.length > MAX_RECORDS) {
@@ -32,7 +174,8 @@ function formatHeaders(headers) {
 
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
-    if (details.tabId < 0) return;
+    if (details.tabId < 0) return;            // 过滤非标签页请求
+    if (SKIP_TYPES.has(details.type)) return;  // 过滤静态资源（JS/CSS/图片/字体等）
     const record = {
       source: "webRequest",
       url: details.url,
@@ -237,8 +380,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         requestBody: msg.data.requestBody,
         responseBody: msg.data.responseBody,
         stack: msg.data.stack,
-        timeStamp: Date.now(),
+        timeStamp: msg.data.timeStamp || Date.now(),
       });
+      sendResponse({ success: true });
       break;
 
     case "FETCH_ERROR":
@@ -248,8 +392,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         method: msg.data.method,
         statusCode: 0,
         error: msg.data.error,
-        timeStamp: Date.now(),
+        timeStamp: msg.data.timeStamp || Date.now(),
       });
+      sendResponse({ success: true });
       break;
 
     case "DOM_TRIGGERED_REQUEST":
@@ -260,6 +405,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         cause: msg.data.cause,
         timeStamp: msg.data.timeStamp || Date.now(),
       });
+      sendResponse({ success: true });
       break;
 
     case "USER_CLICK":
@@ -276,6 +422,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         timeStamp: msg.data.timeStamp || Date.now(),
         url: msg.data.href || null,
       });
+      sendResponse({ success: true });
       break;
 
     case "USER_INPUT":
@@ -291,6 +438,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         timeStamp: msg.data.timeStamp || Date.now(),
         url: null,
       });
+      sendResponse({ success: true });
       break;
 
     case "USER_SUBMIT":
@@ -302,6 +450,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         method: msg.data.method,
         timeStamp: msg.data.timeStamp || Date.now(),
       });
+      sendResponse({ success: true });
       break;
 
     case "EVENT_TRIGGERED_REQUEST":
@@ -313,6 +462,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         tag: msg.data.tag,
         timeStamp: msg.data.timeStamp || Date.now(),
       });
+      sendResponse({ success: true });
       break;
   }
   return true;
